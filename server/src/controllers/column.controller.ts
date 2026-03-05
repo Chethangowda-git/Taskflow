@@ -3,6 +3,7 @@ import { Column } from '../models/column.model';
 import { Card } from '../models/card.model';
 import { Board } from '../models/board.model';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { io } from '../socket/socketManager';
 
 // POST /api/boards/:boardId/columns
 export async function createColumn(req: AuthRequest, res: Response) {
@@ -13,10 +14,12 @@ export async function createColumn(req: AuthRequest, res: Response) {
 
   const column = await Column.create({ boardId: req.params.boardId, name, cardOrder: [] });
 
-  // Add to board's columnOrder
   await Board.findByIdAndUpdate(req.params.boardId, {
     $push: { columnOrder: column._id },
   });
+
+  // Broadcast to all users in the board room
+  io.to(`board:${req.params.boardId}`).emit('column:created', { column });
 
   return res.status(201).json(column);
 }

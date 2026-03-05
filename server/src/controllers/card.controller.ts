@@ -2,6 +2,8 @@ import { Response } from 'express';
 import { Card } from '../models/card.model';
 import { Column } from '../models/column.model';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { io } from '../socket/socketManager';
+
 
 // POST /api/columns/:columnId/cards
 export async function createCard(req: AuthRequest, res: Response) {
@@ -23,10 +25,10 @@ export async function createCard(req: AuthRequest, res: Response) {
     comments: [],
   });
 
-  // Add to column's cardOrder
-  await Column.findByIdAndUpdate(column._id, {
-    $push: { cardOrder: card._id },
-  });
+  await Column.findByIdAndUpdate(column._id, { $push: { cardOrder: card._id } });
+
+  // Broadcast to all users in the board room
+  io.to(`board:${column.boardId}`).emit('card:created', { card });
 
   return res.status(201).json(card);
 }
