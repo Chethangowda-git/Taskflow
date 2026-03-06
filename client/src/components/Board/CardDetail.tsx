@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { Card } from '../../stores/boardStore';
 import { useBoardActions } from '../../hooks/useBoardActions';
 import Modal from '../ui/Modal';
+import { useEffect } from 'react';
+import { getSocket } from '../../hooks/useSocket';
 
 interface Props {
   card: Card;
@@ -24,6 +26,14 @@ export default function CardDetail({ card, onClose }: Props) {
   const [dueDate, setDueDate] = useState(card.dueDate ? card.dueDate.slice(0, 10) : '');
   const [commentText, setCommentText] = useState('');
   const { updateCard, deleteCard, addComment } = useBoardActions();
+  const socket = getSocket();
+
+useEffect(() => {
+  socket.emit('typing:start', { cardId: card._id });
+  return () => {
+    socket.emit('typing:stop', { cardId: card._id });
+  };
+}, [card._id]);
 
   async function handleSave() {
     await updateCard(card._id, { title, description, dueDate: dueDate || undefined });

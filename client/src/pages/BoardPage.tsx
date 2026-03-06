@@ -33,6 +33,7 @@ export default function BoardPage() {
   }, [boardId, setBoard]);
 
   // Join socket room — real-time sync
+  console.log('🟡 BoardPage rendering, boardId:', boardId);
   useBoard(boardId ?? '');
 
   const [activeId, setActiveId] = useState<string | null>(null);

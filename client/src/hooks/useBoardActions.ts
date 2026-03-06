@@ -5,13 +5,13 @@ export function useBoardActions() {
   const store = useBoardStore();
 
   async function createColumn(boardId: string, name: string) {
-    const { data } = await api.post(`/api/boards/${boardId}/columns`, { name });
-    store.addColumn(data);
+    // Don't update store here — socket broadcast handles it
+    await api.post(`/api/boards/${boardId}/columns`, { name });
   }
 
   async function createCard(columnId: string, title: string) {
-    const { data } = await api.post(`/api/columns/${columnId}/cards`, { title });
-    store.addCard(data);
+    // Don't update store here — socket broadcast handles it
+    await api.post(`/api/columns/${columnId}/cards`, { title });
   }
 
   async function updateCard(cardId: string, changes: Record<string, unknown>) {

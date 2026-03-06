@@ -12,10 +12,7 @@ export function useBoard(boardId: string) {
       socket.emit('board:join', { boardId });
     }
 
-    if (socket.connected) {
-      joinBoard();
-    }
-
+    if (socket.connected) joinBoard();
     socket.on('connect', joinBoard);
 
     socket.on('board:state', ({ board, columns, cards }: { board: Board; columns: Column[]; cards: Card[] }) => {
@@ -23,14 +20,12 @@ export function useBoard(boardId: string) {
     });
 
     socket.on('card:created', ({ card }: { card: Card }) => {
+      console.log('🃏 card:created received', card._id);
       useBoardStore.getState().addCard(card);
     });
 
     socket.on('card:moved', ({ cardId, fromColumnId, toColumnId, newIndex }: {
-      cardId: string;
-      fromColumnId: string;
-      toColumnId: string;
-      newIndex: number;
+      cardId: string; fromColumnId: string; toColumnId: string; newIndex: number;
     }) => {
       useBoardStore.getState().moveCard(cardId, fromColumnId, toColumnId, newIndex);
     });

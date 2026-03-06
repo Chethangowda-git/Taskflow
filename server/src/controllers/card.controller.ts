@@ -4,8 +4,6 @@ import { Column } from '../models/column.model';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { io } from '../socket/socketManager';
 
-
-// POST /api/columns/:columnId/cards
 export async function createCard(req: AuthRequest, res: Response) {
   const { title } = req.body;
   if (!title) {
@@ -27,13 +25,12 @@ export async function createCard(req: AuthRequest, res: Response) {
 
   await Column.findByIdAndUpdate(column._id, { $push: { cardOrder: card._id } });
 
-  // Broadcast to all users in the board room
-  io.to(`board:${column.boardId}`).emit('card:created', { card });
+  console.log(`📢 Broadcasting card:created to board:${column.boardId}`);
+  io.to(`board:${column.boardId}`).emit('card:created', { card, createdBy: req.user!.userId });
 
   return res.status(201).json(card);
 }
 
-// GET /api/cards/:cardId
 export async function getCard(req: AuthRequest, res: Response) {
   const card = await Card.findById(req.params.cardId);
   if (!card) {
@@ -42,36 +39,45 @@ export async function getCard(req: AuthRequest, res: Response) {
   return res.json(card);
 }
 
-// PATCH /api/cards/:cardId
 export async function updateCard(req: AuthRequest, res: Response) {
   const { title, description, dueDate, assigneeId, label, isComplete } = req.body;
+  const changes = { title, description, dueDate, assigneeId, label, isComplete };
+
   const card = await Card.findByIdAndUpdate(
     req.params.cardId,
-    { title, description, dueDate, assigneeId, label, isComplete },
+    changes,
     { new: true, omitUndefined: true }
   );
   if (!card) {
     return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Card not found' } });
   }
+
+  io.to(`board:${card.boardId}`).emit('card:updated', {
+    cardId: card._id,
+    changes,
+    updatedBy: req.user!.userId,
+  });
+
   return res.json(card);
 }
 
-// DELETE /api/cards/:cardId
 export async function deleteCard(req: AuthRequest, res: Response) {
   const card = await Card.findById(req.params.cardId);
   if (!card) {
     return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Card not found' } });
   }
 
-  await Column.findByIdAndUpdate(card.columnId, {
-    $pull: { cardOrder: card._id },
+  await Column.findByIdAndUpdate(card.columnId, { $pull: { cardOrder: card._id } });
+  await card.deleteOne();
+
+  io.to(`board:${card.boardId}`).emit('card:deleted', {
+    cardId: req.params.cardId,
+    deletedBy: req.user!.userId,
   });
 
-  await card.deleteOne();
   return res.json({ message: 'Card deleted' });
 }
 
-// PATCH /api/cards/:cardId/move
 export async function moveCard(req: AuthRequest, res: Response) {
   const { toColumnId, newIndex } = req.body;
   const card = await Card.findById(req.params.cardId);
@@ -80,13 +86,8 @@ export async function moveCard(req: AuthRequest, res: Response) {
   }
 
   const fromColumnId = card.columnId;
+  await Column.findByIdAndUpdate(fromColumnId, { $pull: { cardOrder: card._id } });
 
-  // Remove from old column
-  await Column.findByIdAndUpdate(fromColumnId, {
-    $pull: { cardOrder: card._id },
-  });
-
-  // Insert at newIndex in new column
   const toColumn = await Column.findById(toColumnId);
   if (!toColumn) {
     return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Target column not found' } });
@@ -95,14 +96,12 @@ export async function moveCard(req: AuthRequest, res: Response) {
   toColumn.cardOrder.splice(newIndex, 0, card._id);
   await toColumn.save();
 
-  // Update card's columnId
   card.columnId = toColumnId;
   await card.save();
 
   return res.json(card);
 }
 
-// POST /api/cards/:cardId/comments
 export async function addComment(req: AuthRequest, res: Response) {
   const { text } = req.body;
   if (!text) {

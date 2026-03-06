@@ -60,6 +60,7 @@ interface BoardState {
   addColumn: (column: Column) => void;
   moveColumn: (columnId: string, newIndex: number) => void;
   updateColumn: (columnId: string, changes: Partial<Column>) => void;
+  removeColumn: (columnId: string, boardId: string) => void;
 }
 
 export const useBoardStore = create<BoardState>((set, get) => ({
@@ -168,5 +169,20 @@ export const useBoardStore = create<BoardState>((set, get) => ({
       [columnId]: { ...state.columns[columnId], ...changes },
     },
   }));
+},
+removeColumn: (columnId, boardId) => {
+  set((state) => {
+    const columns = { ...state.columns };
+    delete columns[columnId];
+    const board = state.board
+      ? { ...state.board, columnOrder: state.board.columnOrder.filter((id) => id !== columnId) }
+      : null;
+    // Remove all cards in this column
+    const cards = { ...state.cards };
+    Object.keys(cards).forEach((cardId) => {
+      if (cards[cardId].columnId === columnId) delete cards[cardId];
+    });
+    return { columns, board, cards };
+  });
 },
 }));

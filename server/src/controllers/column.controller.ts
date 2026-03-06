@@ -19,7 +19,8 @@ export async function createColumn(req: AuthRequest, res: Response) {
   });
 
   // Broadcast to all users in the board room
-  io.to(`board:${req.params.boardId}`).emit('column:created', { column });
+  // io.to(`board:${req.params.boardId}`).emit('column:created', { column });
+  io.to(`board:${req.params.boardId}`).emit('column:created', { column, createdBy: req.user!.userId });
 
   return res.status(201).json(column);
 }

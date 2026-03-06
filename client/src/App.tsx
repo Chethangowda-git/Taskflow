@@ -11,6 +11,9 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+    console.log('🟢 App rendering');
+  const user = useAuthStore((s) => s.user);
+  console.log('👤 user:', user);
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />

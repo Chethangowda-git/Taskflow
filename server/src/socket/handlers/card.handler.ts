@@ -90,19 +90,21 @@ export function registerCardHandlers(io: Server, socket: Socket) {
     io.to(`board:${card.boardId}`).emit('comment:added', { cardId, comment });
   });
 
-  socket.on('typing:start', ({ cardId }: { cardId: string }) => {
-    socket.broadcast.emit('typing:indicator', {
-      cardId,
-      userId: socket.data.userId,
-      isTyping: true,
-    });
+socket.on('typing:start', ({ cardId }: { cardId: string }) => {
+  socket.broadcast.emit('typing:indicator', {
+    cardId,
+    userId: socket.data.userId,
+    name: socket.data.name,
+    isTyping: true,
   });
+});
 
-  socket.on('typing:stop', ({ cardId }: { cardId: string }) => {
-    socket.broadcast.emit('typing:indicator', {
-      cardId,
-      userId: socket.data.userId,
-      isTyping: false,
-    });
+socket.on('typing:stop', ({ cardId }: { cardId: string }) => {
+  socket.broadcast.emit('typing:indicator', {
+    cardId,
+    userId: socket.data.userId,
+    name: socket.data.name,
+    isTyping: false,
   });
+});
 }
