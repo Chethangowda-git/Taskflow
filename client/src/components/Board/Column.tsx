@@ -1,10 +1,9 @@
 import { useState } from 'react';
-import { Column as ColumnType, Card as CardType } from '../../stores/boardStore';
+import { Column as ColumnType, Card as CardType, useBoardStore } from '../../stores/boardStore';
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useDroppable } from '@dnd-kit/core';
 import { api } from '../../services/api';
-import { useBoardStore } from '../../stores/boardStore';
 import Card from './Card';
 import AddCard from './AddCard';
 
@@ -18,7 +17,7 @@ interface Props {
 export default function Column({ column, cards, isFiltered, visibleCardIds }: Props) {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(column.name);
-  const { removeColumn, updateColumn } = useBoardStore();
+  const { removeColumn } = useBoardStore();
 
   const { setNodeRef: setDropRef } = useDroppable({ id: column._id, data: { type: 'column' } });
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -40,15 +39,16 @@ export default function Column({ column, cards, isFiltered, visibleCardIds }: Pr
       setIsEditing(false);
       return;
     }
-    await api.patch(`/api/columns/${column._id}`, { name });
-    updateColumn(column._id, { name });
     setIsEditing(false);
+    // Socket broadcast handles store update for everyone including acting user
+    await api.patch(`/api/columns/${column._id}`, { name });
   }
 
   async function handleDelete() {
     if (!confirm(`Delete "${column.name}" and all its cards?`)) return;
-    await api.delete(`/api/columns/${column._id}`);
+    // Optimistic remove for acting user — socket handles other users
     removeColumn(column._id, column.boardId);
+    await api.delete(`/api/columns/${column._id}`);
   }
 
   return (
@@ -98,7 +98,7 @@ export default function Column({ column, cards, isFiltered, visibleCardIds }: Pr
           </div>
         </div>
 
-        {/* Cards */}
+        {/* Cards drop zone */}
         <div ref={setDropRef}>
           <SortableContext items={column.cardOrder} strategy={verticalListSortingStrategy}>
             <div className="space-y-2 min-h-[2px]">

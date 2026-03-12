@@ -5,33 +5,23 @@ export function useBoardActions() {
   const store = useBoardStore();
 
   async function createColumn(boardId: string, name: string) {
-    // Don't update store here — socket broadcast handles it
+    // Socket broadcast handles store update for everyone including acting user
     await api.post(`/api/boards/${boardId}/columns`, { name });
   }
 
   async function createCard(columnId: string, title: string) {
-    // Don't update store here — socket broadcast handles it
+    // Socket broadcast handles store update for everyone including acting user
     await api.post(`/api/columns/${columnId}/cards`, { title });
   }
 
   async function updateCard(cardId: string, changes: Record<string, unknown>) {
-    store.takeSnapshot();
-    store.updateCard(cardId, changes);
-    try {
-      await api.patch(`/api/cards/${cardId}`, changes);
-    } catch {
-      store.rollback();
-    }
+    // Socket broadcast handles store update for everyone including acting user
+    await api.patch(`/api/cards/${cardId}`, changes);
   }
 
   async function deleteCard(cardId: string) {
-    store.takeSnapshot();
-    store.removeCard(cardId);
-    try {
-      await api.delete(`/api/cards/${cardId}`);
-    } catch {
-      store.rollback();
-    }
+    // Socket broadcast handles store update for everyone including acting user
+    await api.delete(`/api/cards/${cardId}`);
   }
 
   async function moveCard(

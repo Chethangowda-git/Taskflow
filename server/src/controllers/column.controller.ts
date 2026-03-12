@@ -18,9 +18,10 @@ export async function createColumn(req: AuthRequest, res: Response) {
     $push: { columnOrder: column._id },
   });
 
-  // Broadcast to all users in the board room
-  // io.to(`board:${req.params.boardId}`).emit('column:created', { column });
-  io.to(`board:${req.params.boardId}`).emit('column:created', { column, createdBy: req.user!.userId });
+  io.to(`board:${req.params.boardId}`).emit('column:created', {
+    column,
+    createdBy: req.user!.userId,
+  });
 
   return res.status(201).json(column);
 }
@@ -36,6 +37,13 @@ export async function updateColumn(req: AuthRequest, res: Response) {
   if (!column) {
     return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Column not found' } });
   }
+
+  io.to(`board:${column.boardId}`).emit('column:updated', {
+    columnId: req.params.columnId,
+    changes: { name },
+    updatedBy: req.user!.userId,
+  });
+
   return res.json(column);
 }
 
@@ -46,14 +54,19 @@ export async function deleteColumn(req: AuthRequest, res: Response) {
     return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Column not found' } });
   }
 
-  // Delete all cards in column
   await Card.deleteMany({ columnId: column._id });
 
-  // Remove from board's columnOrder
   await Board.findByIdAndUpdate(column.boardId, {
     $pull: { columnOrder: column._id },
   });
 
   await column.deleteOne();
+
+  io.to(`board:${column.boardId}`).emit('column:deleted', {
+    columnId: req.params.columnId,
+    boardId: column.boardId.toString(),
+    deletedBy: req.user!.userId,
+  });
+
   return res.json({ message: 'Column deleted' });
 }

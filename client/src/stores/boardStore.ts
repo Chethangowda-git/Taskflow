@@ -52,15 +52,17 @@ interface BoardState {
   takeSnapshot: () => void;
   rollback: () => void;
 
+  // Card actions
   addCard: (card: Card) => void;
   updateCard: (cardId: string, changes: Partial<Card>) => void;
   removeCard: (cardId: string) => void;
   moveCard: (cardId: string, fromColumnId: string, toColumnId: string, newIndex: number) => void;
 
+  // Column actions
   addColumn: (column: Column) => void;
-  moveColumn: (columnId: string, newIndex: number) => void;
   updateColumn: (columnId: string, changes: Partial<Column>) => void;
   removeColumn: (columnId: string, boardId: string) => void;
+  moveColumn: (columnId: string, newIndex: number) => void;
 }
 
 export const useBoardStore = create<BoardState>((set, get) => ({
@@ -87,10 +89,14 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     if (snap) set({ ...snap, _snapshot: null });
   },
 
+  // ── Card actions ─────────────────────────────────────────
+
   addCard: (card) => {
     set((state) => {
       const col = state.columns[card.columnId];
       if (!col) return {};
+      // Prevent duplicate
+      if (col.cardOrder.includes(card._id)) return {};
       return {
         cards: { ...state.cards, [card._id]: card },
         columns: {
@@ -145,13 +151,47 @@ export const useBoardStore = create<BoardState>((set, get) => ({
     });
   },
 
+  // ── Column actions ───────────────────────────────────────
+
   addColumn: (column) => {
+    set((state) => {
+      // Prevent duplicate
+      if (state.columns[column._id]) return {};
+      return {
+        columns: { ...state.columns, [column._id]: column },
+        board: state.board
+          ? { ...state.board, columnOrder: [...state.board.columnOrder, column._id] }
+          : null,
+      };
+    });
+  },
+
+  updateColumn: (columnId, changes) => {
     set((state) => ({
-      columns: { ...state.columns, [column._id]: column },
-      board: state.board
-        ? { ...state.board, columnOrder: [...state.board.columnOrder, column._id] }
-        : null,
+      columns: {
+        ...state.columns,
+        [columnId]: { ...state.columns[columnId], ...changes },
+      },
     }));
+  },
+
+  removeColumn: (columnId, _boardId) => {
+    set((state) => {
+      const columns = { ...state.columns };
+      delete columns[columnId];
+
+      const board = state.board
+        ? { ...state.board, columnOrder: state.board.columnOrder.filter((id) => id !== columnId) }
+        : null;
+
+      // Remove all cards belonging to this column
+      const cards = { ...state.cards };
+      Object.keys(cards).forEach((cardId) => {
+        if (cards[cardId].columnId === columnId) delete cards[cardId];
+      });
+
+      return { columns, board, cards };
+    });
   },
 
   moveColumn: (columnId, newIndex) => {
@@ -162,27 +202,4 @@ export const useBoardStore = create<BoardState>((set, get) => ({
       return { board: { ...state.board, columnOrder: order } };
     });
   },
-  updateColumn: (columnId, changes) => {
-  set((state) => ({
-    columns: {
-      ...state.columns,
-      [columnId]: { ...state.columns[columnId], ...changes },
-    },
-  }));
-},
-removeColumn: (columnId, boardId) => {
-  set((state) => {
-    const columns = { ...state.columns };
-    delete columns[columnId];
-    const board = state.board
-      ? { ...state.board, columnOrder: state.board.columnOrder.filter((id) => id !== columnId) }
-      : null;
-    // Remove all cards in this column
-    const cards = { ...state.cards };
-    Object.keys(cards).forEach((cardId) => {
-      if (cards[cardId].columnId === columnId) delete cards[cardId];
-    });
-    return { columns, board, cards };
-  });
-},
 }));

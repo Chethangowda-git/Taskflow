@@ -19,18 +19,24 @@ export function useBoard(boardId: string) {
       useBoardStore.getState().setBoard(board, columns, cards);
     });
 
+    // ── Card events — no userId filtering, store handles dedup ──
     socket.on('card:created', ({ card }: { card: Card }) => {
-      console.log('🃏 card:created received', card._id);
       useBoardStore.getState().addCard(card);
     });
 
     socket.on('card:moved', ({ cardId, fromColumnId, toColumnId, newIndex }: {
-      cardId: string; fromColumnId: string; toColumnId: string; newIndex: number;
+      cardId: string;
+      fromColumnId: string;
+      toColumnId: string;
+      newIndex: number;
     }) => {
       useBoardStore.getState().moveCard(cardId, fromColumnId, toColumnId, newIndex);
     });
 
-    socket.on('card:updated', ({ cardId, changes }: { cardId: string; changes: Partial<Card> }) => {
+    socket.on('card:updated', ({ cardId, changes }: {
+      cardId: string;
+      changes: Partial<Card>;
+    }) => {
       useBoardStore.getState().updateCard(cardId, changes);
     });
 
@@ -38,6 +44,7 @@ export function useBoard(boardId: string) {
       useBoardStore.getState().removeCard(cardId);
     });
 
+    // ── Column events ────────────────────────────────────────
     socket.on('column:created', ({ column }: { column: Column }) => {
       useBoardStore.getState().addColumn(column);
     });
@@ -46,8 +53,18 @@ export function useBoard(boardId: string) {
       useBoardStore.getState().moveColumn(columnId, newIndex);
     });
 
-    socket.on('column:updated', ({ columnId, changes }: { columnId: string; changes: Partial<Column> }) => {
+    socket.on('column:updated', ({ columnId, changes }: {
+      columnId: string;
+      changes: Partial<Column>;
+    }) => {
       useBoardStore.getState().updateColumn(columnId, changes);
+    });
+
+    socket.on('column:deleted', ({ columnId, boardId: deletedBoardId }: {
+      columnId: string;
+      boardId: string;
+    }) => {
+      useBoardStore.getState().removeColumn(columnId, deletedBoardId);
     });
 
     return () => {
@@ -61,6 +78,7 @@ export function useBoard(boardId: string) {
       socket.off('column:created');
       socket.off('column:moved');
       socket.off('column:updated');
+      socket.off('column:deleted');
     };
   }, [boardId]);
 }
